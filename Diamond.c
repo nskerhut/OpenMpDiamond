@@ -35,11 +35,11 @@ int main() {
     int half = size / 2;
 	// Add clock to the program to keep track of how quickly the program runs.
 	clock_t t;
-	#pragma omp parallel private(th_id)
+	#pragma omp parallel private(th_id) shared(shape)
 	{
 	    //Collect the start time in processor. We are only interested in overall time, not individual processors.
         #pragma omp barrier
-        if(th_id == 0) {
+        if ( th_id == 0 ) {
             t = clock();
         }
         //printf("area=%d\n",area);
@@ -52,22 +52,19 @@ int main() {
         //#pragma omp parallel for
 
         // Calculate the range that the current processor is is responsible for.
+        //int lb = floor(area / nthreads) * th_id;
+        //int ub = floor(area / nthreads) * (th_id + 1);
+        int chunk = floor(area / nthreads);
+        //printf("p%d lb=%d,ub=%d\n",th_id,lb,ub);
+        #pragma omp for schedule(dynamic, chunk)
+        for(i = 0;i < area;i++){
 
-        int lb = floor(area / nthreads) * th_id;
-        int ub = floor(area / nthreads) * (th_id + 1);
-
-        for(i = lb;i < ub;i++){
             x = i / width;
             y = i % width;
 
     //		printf("%3d ",i);
-    //		printf("(%2d,%2d)",x,y);
-
-
-
+    		//printf("p%d (%2d,%2d)",th_id, x,y);
             if( y == size) {
-    //			printf("\\\n");
-
                 shape[i] = cr;
             }
             //assign the print char * to the correct index in the shape.
@@ -78,15 +75,15 @@ int main() {
                && y <= -x + 3 * half
             )
             {
-    //			printf("*");
-
+                /*#pragma omp critical
+                {
+                    printf("p%d (%d,%d)",th_id,x,y);
+                }*/
                 shape[i]=print_char;
             }
             //put a space in place if it should not be a newline or the printed char.
             else
             {
-    //			printf("-");
-
                 shape[i]=trailing_char;
             }
         }
@@ -94,15 +91,12 @@ int main() {
         // processor 0 is responsible for providing the IO.
         #pragma omp barrier
         if ( th_id == 0 ) {
-          nthreads = omp_get_num_threads();
-          printf("There are %d threads\n",nthreads);
-
           // Display the time it took to build the shape.
           t = clock() - t;
+          printf("\n%s\n",shape);
 
-          printf("elapsed time: %f",((float)t)/CLOCKS_PER_SEC);
-
-            printf("\n%s\n",shape);
+          printf("Built in %d threads\n",nthreads);
+          printf("elapsed time: %f\n",((float)t)/CLOCKS_PER_SEC);
         }
 	}
 
