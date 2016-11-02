@@ -1,6 +1,8 @@
 # depslib dependency file v1.0
-1478017994 source:c:\users\sebastian\projects\diamondparallel\diamond.c
+1478107167 source:c:\users\sebastian\projects\diamondparallel\diamond.c
 	<stdio.h>
 	<stdlib.h>
 	<time.h>
+	<omp.h>
+	<math.h>
 
