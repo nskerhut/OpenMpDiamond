@@ -3,11 +3,17 @@
 #include <time.h>
 #include <omp.h>
 #include <math.h>
-#define size 21 /* The size of the diamond */
-
+#define SIZE 21 /* The size of the diamond */
+//Define the characters that will be printed.
+#define print_char '*'
+#define trailing_char ' '
+#define cr '\n'
+// Define the with to be the size plus one.
+#define WIDTH (SIZE+1)
+// Calculate the area of the diamond length is the size 20 width is 20 + 1 for newline chars
+#define AREA (SIZE*WIDTH)
+#define HALF (SIZE/2)
 int main() {
-
-	int width = size+1;
 
 	// keep track of the parallel processes.
 	int th_id; // the id of the current thread;
@@ -15,15 +21,8 @@ int main() {
 	//the total number of threads;
     int nthreads;
 
-	char print_char = '*';
-	char trailing_char = ' ';
-	char cr = '\n';
-
-	// Calculate the area of the diamond length is the size 20 width is 20 + 1 for newline chars
-	int area = size*width;
-
     // store the full shape in a single dimensional array, boosts memory efficiency.
-	char shape[area+1];
+	char shape[AREA+1];
 
 	int i;
 
@@ -32,58 +31,73 @@ int main() {
 	// Y-axis
 	int y;
 	// pre calculate the midpoint since it is relatively fixed in size.
-    int half = size / 2;
+    //int lb, ub;
+    int chunk;
 	// Add clock to the program to keep track of how quickly the program runs.
 	clock_t t;
-	#pragma omp parallel private(th_id) shared(shape)
+	#pragma omp parallel default(shared) private(th_id,i) shared(shape,nthreads,chunk)
 	{
-	    //Collect the start time in processor. We are only interested in overall time, not individual processors.
-        #pragma omp barrier
-        if ( th_id == 0 ) {
-            t = clock();
-        }
-        //printf("area=%d\n",area);
-
 	    // retrieve the number of threads from OpenMP
 	    nthreads = omp_get_num_threads();
 	    // retrieve the current thread id from OpenMP
         th_id = omp_get_thread_num();
 
+	    //Collect the start time in processor. We are only interested in overall time, not individual processors.
+        #pragma omp barrier
+        if ( th_id == 0 ) {
+            printf("area=%d\n",AREA);
+            t = clock();
+        }
+        //printf("area=%d\n",area);
+
+        #pragma omp barrier
+        chunk = floor(AREA/nthreads);
+
+
         //#pragma omp parallel for
 
         // Calculate the range that the current processor is is responsible for.
-        //int lb = floor(area / nthreads) * th_id;
-        //int ub = floor(area / nthreads) * (th_id + 1);
-        int chunk = floor(area / nthreads);
-        //printf("p%d lb=%d,ub=%d\n",th_id,lb,ub);
-        #pragma omp for schedule(dynamic, chunk)
-        for(i = 0;i < area;i++){
 
-            x = i / width;
-            y = i % width;
+        //printf("p%d lb=%d,ub=%d\n",th_id,lb,ub);
+        #pragma omp barrier
+        /*lb = floor(AREA / nthreads) * th_id;
+        ub = floor(AREA / nthreads) * (th_id + 1);
+        #pragma omp critical
+        {
+            printf("p%d [%d,%d]\n",th_id,lb,ub);
+        }
+        #pragma omp barrier
+*/
+        #pragma omp parallel for schedule(static, chunk)
+        for(i = 0;i < AREA;i++){
+        //for(i = lb;i < ub;i++){
+
+            x = i / WIDTH;
+            y = i % WIDTH;
 
     //		printf("%3d ",i);
     		//printf("p%d (%2d,%2d)",th_id, x,y);
-            if( y == size) {
+
+    		//if the y-axis is equal the WIDTH - 1 then place the carriage return.
+            if( y == SIZE) {
+                #pragma omp critical
                 shape[i] = cr;
             }
             //assign the print char * to the correct index in the shape.
             else if (
-               y >= -x + half
-               && y <= x + half
-               && y >= x - half
-               && y <= -x + 3 * half
+               y >= -x + HALF
+               && y <= x + HALF
+               && y >= x - HALF
+               && y <= -x + 3 * HALF
             )
             {
-                /*#pragma omp critical
-                {
-                    printf("p%d (%d,%d)",th_id,x,y);
-                }*/
+                #pragma omp critical
                 shape[i]=print_char;
             }
             //put a space in place if it should not be a newline or the printed char.
             else
             {
+                #pragma omp critical
                 shape[i]=trailing_char;
             }
         }
